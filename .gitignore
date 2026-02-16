@@ -40,3 +40,4 @@ backend/db/*.db-journal
 # Uncomment if you don't want to commit lock files:
 # package-lock.json
 # backend/package-lock.json
+.vercel
