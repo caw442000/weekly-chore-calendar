@@ -198,6 +198,11 @@ export const App: React.FC = () => {
     loadFamily();
   }, [currentFamilyId]); // Run this whenever currentFamilyId changes
 
+  // Convert the current week start date to ISO format string (e.g., "2026-02-16")
+  // This is used as a key to identify which week we're looking at
+  // MOVED HERE - BEFORE the useEffect that uses it
+  const currentWeekKey = useMemo(() => toISODate(currentWeekStart), [currentWeekStart]);
+
   // Load assignments for the current week whenever the week changes
   useEffect(() => {
     const loadAssignments = async () => {
@@ -215,7 +220,7 @@ export const App: React.FC = () => {
     };
 
     loadAssignments();
-  }, [currentFamilyId, currentWeekKey]); // Run when family ID or week changes
+  }, [currentFamilyId, currentWeekKey, currentFamily]); // Run when family ID or week changes
 
   // Get data from current family, or use empty arrays if no family loaded
   // The ?. is called "optional chaining" - safely accesses properties that might not exist
@@ -229,10 +234,6 @@ export const App: React.FC = () => {
     () => Object.fromEntries(chores.map((c) => [c.id, c])),
     [chores] // Only recalculate when chores change
   );
-
-  // Convert the current week start date to ISO format string (e.g., "2026-02-16")
-  // This is used as a key to identify which week we're looking at
-  const currentWeekKey = useMemo(() => toISODate(currentWeekStart), [currentWeekStart]);
 
   // Calculate all the dates in the current week
   // This creates an array of 7 Date objects, one for each day of the week
@@ -351,7 +352,7 @@ export const App: React.FC = () => {
       setCurrentFamily((prev) => prev ? {
         ...prev,
         chores: prev.chores.filter((c) => c.id !== choreId),
-        assignments: prev.assignments.filter((a) => a.choreId !== choreId)
+        assignments: prev.assignments.filter((a) => a.chore_id !== choreId)
       } : null);
     } catch (err: any) {
       alert(err.message || 'Failed to remove chore');
@@ -519,10 +520,15 @@ export const App: React.FC = () => {
       // Send request to backend to create the family
       // The backend creates the family, admin account, and default chores
       const result = await apiClient.createFamily(trimmedName, adminEmail, adminPassword);
+      
+      // Login as the admin to get the admin ID
+      const loginResult = await apiClient.adminLogin(adminEmail, adminPassword);
+      
       // Set the current family ID (this triggers loading the family data)
       setCurrentFamilyId(result.family.id);
       // Log in as the admin (so they can manage the family)
-      setLoggedInAdminId(result.admin.id);
+      setLoggedInAdminId(loginResult.admin.id);
+      
       // Clear all the input fields
       setNewFamilyName('');
       setNewAdminEmail('');
@@ -1085,9 +1091,6 @@ export const App: React.FC = () => {
               <button type="button" onClick={handleUserLogin}>
                 Sign In
               </button>
-              {families.length === 0 && (
-                <p className="empty">No families exist yet. Create a family first.</p>
-              )}
             </div>
           )}
         </section>
